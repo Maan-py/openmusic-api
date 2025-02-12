@@ -41,6 +41,37 @@ class AlbumsService {
     return result.rows.map(mapDBToModelAlbum)[0];
   }
 
+  async getAlbumByIdWithSongs(albumId) {
+    const albumQuery = {
+      text: "SELECT * FROM albums WHERE id = $1",
+      values: [albumId],
+    };
+
+    const albumResult = await this._pool.query(albumQuery);
+
+    if (!albumResult.rows.length) {
+      throw new NotFoundError("Album tidak ditemukan");
+    }
+
+    const songsQuery = {
+      text: 'SELECT s.id, s.title, s.performer FROM songs s WHERE s."albumId" = $1',
+      values: [albumId],
+    };
+
+    const songsResult = await this._pool.query(songsQuery);
+
+    // if (!songsResult.rows.length) {
+    //   throw new NotFoundError("Lagu tidak ditemukan");
+    // }
+
+    return {
+      id: albumResult.rows[0].id,
+      name: albumResult.rows[0].name,
+      year: albumResult.rows[0].year,
+      songs: songsResult.rows,
+    };
+  }
+
   async editAlbumById(id, { name, year }) {
     const query = {
       text: "UPDATE albums SET name = $1, year = $2 WHERE id = $3 RETURNING ID",
