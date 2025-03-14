@@ -45,6 +45,11 @@ class PlaylistsService {
   async deletePlaylistById(id, owner) {
     await this.verifyPlaylistOwner(id, owner);
 
+    await this._pool.query({
+      text: "DELETE FROM playlist_song_activities WHERE playlist_id = $1",
+      values: [id],
+    });
+
     const query = {
       text: "DELETE FROM playlists WHERE id = $1 RETURNING id",
       values: [id],
@@ -82,6 +87,35 @@ class PlaylistsService {
       }
       await this._collaborationsService.verifyCollaborator(playlistId, userId);
     }
+  }
+
+  async addPlaylistActivity(playlistId, songId, userId, action) {
+    const id = `activity-${nanoid(16)}`;
+
+    const query = {
+      text: `INSERT INTO playlist_song_activities (id, playlist_id, song_id, user_id, action, time) 
+             VALUES ($1, $2, $3, $4, $5, NOW())`,
+      values: [id, playlistId, songId, userId, action],
+    };
+
+    await this._pool.query(query);
+  }
+
+  async getPlaylistActivities(playlistId) {
+    const query = {
+      text: `
+            SELECT users.username, songs.title, action, time 
+            FROM playlist_song_activities
+            JOIN users ON users.id = playlist_song_activities.user_id
+            JOIN songs ON songs.id = playlist_song_activities.song_id
+            WHERE playlist_song_activities.playlist_id = $1
+            ORDER BY time ASC
+        `,
+      values: [playlistId],
+    };
+
+    const result = await this._pool.query(query);
+    return result.rows;
   }
 }
 
