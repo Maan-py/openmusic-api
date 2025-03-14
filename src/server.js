@@ -119,8 +119,8 @@ const init = async () => {
       plugin: collaborations,
       options: {
         service: collaborationsService,
-        playlistsService, // ✅ Tambahkan PlaylistsService ke dalam dependencies
-        usersService, // ✅ Tambahkan UsersService ke dalam dependencies
+        playlistsService,
+        usersService,
         validator: CollaborationsValidator,
       },
     },
@@ -135,7 +135,6 @@ const init = async () => {
     },
   ]);
 
-  // Middleware error handling
   server.ext("onPreResponse", (request, h) => {
     const { response } = request;
 

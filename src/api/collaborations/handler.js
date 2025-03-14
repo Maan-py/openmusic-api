@@ -32,39 +32,17 @@ class CollaborationsHandler {
   }
 
   async deleteCollaborationHandler(request, h) {
-    try {
-      this._validator.validateCollaborationPayload(request.payload);
-      const { playlistId, userId } = request.payload;
-      const { id: ownerId } = request.auth.credentials;
+    this._validator.validateCollaborationPayload(request.payload);
+    const { playlistId, userId } = request.payload;
+    const { id: ownerId } = request.auth.credentials;
 
-      // 🔹 Pastikan user yang menghapus adalah pemilik playlist
-      await this._playlistsService.verifyPlaylistOwner(playlistId, ownerId);
+    await this._playlistsService.verifyPlaylistOwner(playlistId, ownerId);
+    await this._collaborationsService.deleteCollaboration(playlistId, userId);
 
-      // 🔹 Hapus kolaborasi (Perbaikan disini)
-      await this._collaborationsService.deleteCollaboration(playlistId, userId);
-
-      return {
-        status: "success",
-        message: "Kolaborasi berhasil dihapus",
-      };
-    } catch (error) {
-      if (error instanceof ClientError) {
-        return h
-          .response({
-            status: "fail",
-            message: error.message,
-          })
-          .code(error.statusCode);
-      }
-
-      console.error("[ERROR] deleteCollaborationHandler:", error);
-      return h
-        .response({
-          status: "error",
-          message: "Terjadi kegagalan pada server kami",
-        })
-        .code(500);
-    }
+    return {
+      status: "success",
+      message: "Kolaborasi berhasil dihapus",
+    };
   }
 }
 

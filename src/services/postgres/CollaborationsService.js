@@ -10,7 +10,6 @@ class CollaborationsService {
   }
 
   async verifyPlaylistAccess(playlistId, userId) {
-    // 🔹 Cek apakah user adalah pemilik playlist
     const ownerQuery = {
       text: "SELECT owner FROM playlists WHERE id = $1",
       values: [playlistId],
@@ -23,10 +22,9 @@ class CollaborationsService {
     }
 
     if (ownerResult.rows[0].owner === userId) {
-      return; // ✅ Jika user adalah pemilik, langsung berikan akses
+      return;
     }
 
-    // 🔹 Cek apakah user adalah kolaborator
     const collabQuery = {
       text: "SELECT 1 FROM collaborations WHERE playlist_id = $1 AND user_id = $2",
       values: [playlistId, userId],
@@ -53,7 +51,6 @@ class CollaborationsService {
   }
 
   async addCollaboration(playlistId, userId) {
-    // 🔹 Cek apakah user ada
     const userCheckQuery = {
       text: "SELECT id FROM users WHERE id = $1",
       values: [userId],
@@ -64,7 +61,6 @@ class CollaborationsService {
       throw new NotFoundError("User tidak ditemukan");
     }
 
-    // 🔹 Cek apakah playlist ada dan ambil ownernya
     const playlistCheckQuery = {
       text: "SELECT owner FROM playlists WHERE id = $1",
       values: [playlistId],
@@ -77,12 +73,10 @@ class CollaborationsService {
 
     const { owner } = playlistCheckResult.rows[0];
 
-    // ✅ Mencegah pemilik menambahkan dirinya sendiri sebagai kolaborator
     if (owner === userId) {
       throw new InvariantError("Pemilik playlist tidak bisa menjadi kolaborator");
     }
 
-    // 🔹 Cek apakah user sudah menjadi kolaborator
     const existingCollabQuery = {
       text: "SELECT 1 FROM collaborations WHERE playlist_id = $1 AND user_id = $2",
       values: [playlistId, userId],
@@ -94,7 +88,6 @@ class CollaborationsService {
       throw new InvariantError("User sudah menjadi kolaborator dalam playlist ini");
     }
 
-    // 🔹 Tambahkan kolaborasi
     const id = `collab-${nanoid(16)}`;
     const insertQuery = {
       text: "INSERT INTO collaborations (id, playlist_id, user_id) VALUES($1, $2, $3) RETURNING id",
@@ -111,7 +104,6 @@ class CollaborationsService {
   }
 
   async deleteCollaboration(playlistId, userId) {
-    // 🔹 Cek apakah kolaborasi ada sebelum menghapus
     const checkQuery = {
       text: "SELECT id FROM collaborations WHERE playlist_id = $1 AND user_id = $2",
       values: [playlistId, userId],
@@ -122,7 +114,6 @@ class CollaborationsService {
       throw new NotFoundError("Kolaborasi tidak ditemukan");
     }
 
-    // 🔹 Hapus kolaborasi
     const deleteQuery = {
       text: "DELETE FROM collaborations WHERE playlist_id = $1 AND user_id = $2 RETURNING id",
       values: [playlistId, userId],

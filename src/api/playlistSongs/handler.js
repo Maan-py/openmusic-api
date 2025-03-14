@@ -42,35 +42,16 @@ class PlaylistSongsHandler {
   }
 
   async deletePlaylistSongHandler(request, h) {
-    try {
-      const { id: playlistId } = request.params;
-      const { songId } = request.payload;
-      const { id: userId } = request.auth.credentials;
+    const { id: playlistId } = request.params;
+    const { songId } = request.payload;
+    const { id: userId } = request.auth.credentials;
 
-      await this._service.deleteSongFromPlaylist(playlistId, songId, userId);
+    await this._service.deleteSongFromPlaylist(playlistId, songId, userId);
 
-      return {
-        status: "success",
-        message: "Lagu berhasil dihapus dari playlist",
-      };
-    } catch (error) {
-      if (error instanceof ClientError) {
-        return h
-          .response({
-            status: "fail",
-            message: error.message,
-          })
-          .code(error.statusCode);
-      }
-
-      console.error("[ERROR] deletePlaylistSongHandler:", error);
-      return h
-        .response({
-          status: "error",
-          message: "Terjadi kegagalan pada server kami",
-        })
-        .code(500);
-    }
+    return {
+      status: "success",
+      message: "Lagu berhasil dihapus dari playlist",
+    };
   }
 }
 
