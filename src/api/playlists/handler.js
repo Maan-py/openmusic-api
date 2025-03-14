@@ -28,14 +28,12 @@ class PlaylistsHandler {
 
   async getPlaylistsHandler(request) {
     const { id: owner } = request.auth.credentials;
-
-    // Ambil daftar playlist unik
     const playlists = await this._service.getPlaylists(owner);
 
     return {
       status: "success",
       data: {
-        playlists, // Data sudah difilter di service
+        playlists,
       },
     };
   }

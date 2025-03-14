@@ -6,8 +6,9 @@ const NotFoundError = require("../../exceptions/NotFoundError");
 const AuthorizationError = require("../../exceptions/AuthorizationError");
 
 class PlaylistSongsService {
-  constructor() {
+  constructor(collaborationsService) {
     this._pool = new Pool();
+    this._collaborationsService = collaborationsService;
   }
 
   async verifySongExists(songId) {
@@ -42,6 +43,21 @@ class PlaylistSongsService {
     }
   }
 
+  async verifyPlaylistAccess(playlistId, userId) {
+    try {
+      await this.verifyPlaylistOwner(playlistId, userId);
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+      try {
+        await this._collaborationsService.verifyCollaborator(playlistId, userId);
+      } catch {
+        throw new AuthorizationError("Anda tidak berhak mengakses resource ini");
+      }
+    }
+  }
+
   async addSongToPlaylist(playlistId, songId) {
     await this.verifySongExists(songId);
     const id = `playlist_song-${nanoid(16)}`;
@@ -53,7 +69,7 @@ class PlaylistSongsService {
 
     const result = await this._pool.query(query);
 
-    if (!result.rows[0].id) {
+    if (!result.rowCount) {
       throw new InvariantError("Lagu gagal ditambahkan ke playlist");
     }
 
@@ -78,7 +94,18 @@ class PlaylistSongsService {
     return mapDBToModelPlaylistSongs(result.rows[0], result.rows);
   }
 
-  async deleteSongFromPlaylist(playlistId, songId) {
+  async deleteSongFromPlaylist(playlistId, songId, userId) {
+    // ✅ Pastikan pemilik playlist atau kolaborator bisa menghapus lagu
+    try {
+      await this.verifyPlaylistOwner(playlistId, userId);
+    } catch (error) {
+      if (error instanceof AuthorizationError) {
+        await this._collaborationsService.verifyCollaborator(playlistId, userId);
+      } else {
+        throw error;
+      }
+    }
+
     const query = {
       text: "DELETE FROM playlist_songs WHERE playlist_id = $1 AND song_id = $2 RETURNING id",
       values: [playlistId, songId],
@@ -86,7 +113,7 @@ class PlaylistSongsService {
 
     const result = await this._pool.query(query);
 
-    if (!result.rows.length) {
+    if (!result.rowCount) {
       throw new InvariantError("Lagu gagal dihapus dari playlist. Id tidak ditemukan");
     }
   }

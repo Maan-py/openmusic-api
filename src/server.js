@@ -3,6 +3,7 @@ const Hapi = require("@hapi/hapi");
 const Jwt = require("@hapi/jwt");
 const ClientError = require("./exceptions/ClientError");
 
+// Import modules
 const albums = require("./api/albums");
 const AlbumsService = require("./services/postgres/AlbumsService");
 const AlbumsValidator = require("./validator/albums");
@@ -15,30 +16,34 @@ const users = require("./api/users");
 const UsersService = require("./services/postgres/UsersService");
 const UsersValidator = require("./validator/users");
 
-// playlists
 const playlists = require("./api/playlists");
 const PlaylistsService = require("./services/postgres/PlaylistsService");
 const PlaylistsValidator = require("./validator/playlists");
 
-// playlistSongs
 const playlistSongs = require("./api/playlistSongs");
 const PlaylistSongsService = require("./services/postgres/PlaylistSongsService");
 const PlaylistSongsValidator = require("./validator/playlistSongs");
 
-// authentications
+const collaborations = require("./api/collaborations");
+const CollaborationsService = require("./services/postgres/CollaborationsService");
+const CollaborationsValidator = require("./validator/collaborations");
+
 const authentications = require("./api/authentications");
 const AuthenticationsService = require("./services/postgres/AuthenticationsService");
 const TokenManager = require("./tokenize/TokenManager");
 const AuthenticationsValidator = require("./validator/authentications");
 
 const init = async () => {
+  // Inisialisasi service
   const albumsService = new AlbumsService();
   const songsService = new SongsService();
   const usersService = new UsersService();
-  const playlistsService = new PlaylistsService();
-  const playlistSongsService = new PlaylistSongsService();
+  const collaborationsService = new CollaborationsService();
+  const playlistsService = new PlaylistsService(collaborationsService);
+  const playlistSongsService = new PlaylistSongsService(collaborationsService); // ✅ Pastikan hanya menerima CollaborationsService
   const authenticationsService = new AuthenticationsService();
 
+  // Konfigurasi server
   const server = Hapi.server({
     port: process.env.PORT,
     host: process.env.HOST,
@@ -49,14 +54,14 @@ const init = async () => {
     },
   });
 
-  // registrasi plugin eksternal
+  // Registrasi plugin eksternal
   await server.register([
     {
       plugin: Jwt,
     },
   ]);
 
-  // mendefinisikan strategy autentikasi jwt
+  // Mendefinisikan strategy autentikasi JWT
   server.auth.strategy("openmusic_jwt", "jwt", {
     keys: process.env.ACCESS_TOKEN_KEY,
     verify: {
@@ -73,6 +78,7 @@ const init = async () => {
     }),
   });
 
+  // Registrasi plugin internal
   await server.register([
     {
       plugin: albums,
@@ -110,6 +116,15 @@ const init = async () => {
       },
     },
     {
+      plugin: collaborations,
+      options: {
+        service: collaborationsService,
+        playlistsService, // ✅ Tambahkan PlaylistsService ke dalam dependencies
+        usersService, // ✅ Tambahkan UsersService ke dalam dependencies
+        validator: CollaborationsValidator,
+      },
+    },
+    {
       plugin: authentications,
       options: {
         authenticationsService,
@@ -120,6 +135,7 @@ const init = async () => {
     },
   ]);
 
+  // Middleware error handling
   server.ext("onPreResponse", (request, h) => {
     const { response } = request;
 
@@ -139,7 +155,7 @@ const init = async () => {
 
       const newResponse = h.response({
         status: "error",
-        message: "terjadi kegagalan pada server kami",
+        message: "Terjadi kegagalan pada server kami",
       });
       newResponse.code(500);
       return newResponse;
