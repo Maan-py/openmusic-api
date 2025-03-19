@@ -42,6 +42,10 @@ const StorageService = require("./services/storage/StorageService");
 const UploadsValidator = require("./validator/uploads");
 const uploadsPlugin = require("./api/uploads");
 
+const LikesService = require("./services/postgres/LikesService");
+const LikesHandler = require("./api/likes");
+const LikesValidator = require("./validator/likes");
+
 // Inisialisasi StorageService dengan path yang benar
 const storageService = new StorageService(path.resolve(__dirname, "api/uploads/file/images"));
 
@@ -55,6 +59,7 @@ const init = async () => {
   const playlistSongsService = new PlaylistSongsService(collaborationsService);
   const exportsService = new ExportsService();
   const authenticationsService = new AuthenticationsService();
+  const likesService = new LikesService(); // Inisialisasi LikesService
 
   // Konfigurasi server
   const server = Hapi.server({
@@ -77,7 +82,7 @@ const init = async () => {
       aud: false,
       iss: false,
       sub: false,
-      maxAgeSec: Number(process.env.ACCESS_TOKEN_AGE), // Pastikan dikonversi ke angka
+      maxAgeSec: Number(process.env.ACCESS_TOKEN_AGE),
     },
     validate: (artifacts) => ({
       isValid: true,
@@ -96,6 +101,7 @@ const init = async () => {
     { plugin: exportsPlugin, options: { service: exportsService, playlistsService, validator: ExportsValidator } },
     { plugin: authentications, options: { authenticationsService, usersService, tokenManager: TokenManager, validator: AuthenticationsValidator } },
     { plugin: uploadsPlugin, options: { storageService, albumsService, validator: UploadsValidator } },
+    { plugin: LikesHandler, options: { service: likesService, validator: LikesValidator } }, // Registrasi plugin LikesHandler
   ]);
 
   // Penanganan error global
