@@ -1,11 +1,12 @@
 const { Pool } = require("pg");
+const CacheService = require("../redis/CacheService");
 
 class LikesService {
   constructor() {
     this._pool = new Pool();
+    this._cache = new CacheService(); 
   }
 
-  // Cek apakah pengguna sudah menyukai album
   async checkIfAlbumLiked(userId, albumId) {
     const query = {
       text: "SELECT * FROM user_album_likes WHERE user_id = $1 AND album_id = $2",
@@ -13,10 +14,9 @@ class LikesService {
     };
 
     const result = await this._pool.query(query);
-    return result.rows.length > 0; // Jika ada baris, berarti album sudah disukai
+    return result.rows.length > 0; 
   }
 
-  // Menambahkan like ke album
   async addAlbumLike(userId, albumId) {
     const query = {
       text: "INSERT INTO user_album_likes (user_id, album_id) VALUES ($1, $2)",
@@ -24,9 +24,11 @@ class LikesService {
     };
 
     await this._pool.query(query);
+
+    const cacheKey = `album_likes_count:${albumId}`;
+    await this._cache.del(cacheKey); 
   }
 
-  // Menghapus like dari album
   async removeAlbumLike(userId, albumId) {
     const query = {
       text: "DELETE FROM user_album_likes WHERE user_id = $1 AND album_id = $2",
@@ -34,20 +36,32 @@ class LikesService {
     };
 
     await this._pool.query(query);
+
+    const cacheKey = `album_likes_count:${albumId}`;
+    await this._cache.del(cacheKey); 
   }
 
-  // Menghitung jumlah yang menyukai album
   async getAlbumLikesCount(albumId) {
+    const cacheKey = `album_likes_count:${albumId}`;
+
+    const cachedResult = await this._cache.get(cacheKey);
+    if (cachedResult) {
+      console.log(`Cache hit for album ${albumId}: ${cachedResult}`);
+      return cachedResult; 
+    }
+
     const query = {
       text: "SELECT COUNT(*) FROM user_album_likes WHERE album_id = $1",
       values: [albumId],
     };
 
     const result = await this._pool.query(query);
-    return result.rows[0].count;
+    const likeCount = result.rows[0].count;
+
+    await this._cache.set(cacheKey, likeCount, 1800); 
+    return likeCount;
   }
 
-  // Mendapatkan album berdasarkan id
   async getAlbumById(id) {
     const query = {
       text: "SELECT * FROM albums WHERE id = $1",
