@@ -1,6 +1,7 @@
 require("dotenv").config();
 const Hapi = require("@hapi/hapi");
 const Jwt = require("@hapi/jwt");
+const path = require("path");
 const ClientError = require("./exceptions/ClientError");
 
 // Import modules
@@ -37,6 +38,13 @@ const AuthenticationsService = require("./services/postgres/AuthenticationsServi
 const TokenManager = require("./tokenize/TokenManager");
 const AuthenticationsValidator = require("./validator/authentications");
 
+const StorageService = require("./services/storage/StorageService");
+const UploadsValidator = require("./validator/uploads");
+const uploadsPlugin = require("./api/uploads");
+
+// Inisialisasi StorageService dengan path yang benar
+const storageService = new StorageService(path.resolve(__dirname, "api/uploads/file/images"));
+
 const init = async () => {
   // Inisialisasi service
   const albumsService = new AlbumsService();
@@ -50,21 +58,17 @@ const init = async () => {
 
   // Konfigurasi server
   const server = Hapi.server({
-    port: process.env.PORT,
-    host: process.env.HOST,
+    port: process.env.PORT || 5000,
+    host: process.env.HOST || "localhost",
     routes: {
       cors: {
-        origin: ["*"],
+        origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",") : ["*"],
       },
     },
   });
 
   // Registrasi plugin eksternal
-  await server.register([
-    {
-      plugin: Jwt,
-    },
-  ]);
+  await server.register([{ plugin: Jwt }]);
 
   // Mendefinisikan strategy autentikasi JWT
   server.auth.strategy("openmusic_jwt", "jwt", {
@@ -73,104 +77,42 @@ const init = async () => {
       aud: false,
       iss: false,
       sub: false,
-      maxAgeSec: process.env.ACCESS_TOKEN_AGE,
+      maxAgeSec: Number(process.env.ACCESS_TOKEN_AGE), // Pastikan dikonversi ke angka
     },
     validate: (artifacts) => ({
       isValid: true,
-      credentials: {
-        id: artifacts.decoded.payload.id,
-      },
+      credentials: { id: artifacts.decoded.payload.id },
     }),
   });
 
   // Registrasi plugin internal
   await server.register([
-    {
-      plugin: albums,
-      options: {
-        service: albumsService,
-        validator: AlbumsValidator,
-      },
-    },
-    {
-      plugin: songs,
-      options: {
-        service: songsService,
-        validator: SongsValidator,
-      },
-    },
-    {
-      plugin: users,
-      options: {
-        service: usersService,
-        validator: UsersValidator,
-      },
-    },
-    {
-      plugin: playlists,
-      options: {
-        service: playlistsService,
-        validator: PlaylistsValidator,
-      },
-    },
-    {
-      plugin: playlistSongs,
-      options: {
-        service: playlistSongsService,
-        validator: PlaylistSongsValidator,
-      },
-    },
-    {
-      plugin: collaborations,
-      options: {
-        service: collaborationsService,
-        playlistsService,
-        usersService,
-        validator: CollaborationsValidator,
-      },
-    },
-    {
-      plugin: exportsPlugin,
-      options: {
-        service: exportsService,
-        playlistsService,
-        validator: ExportsValidator,
-      },
-    },
-    {
-      plugin: authentications,
-      options: {
-        authenticationsService,
-        usersService,
-        tokenManager: TokenManager,
-        validator: AuthenticationsValidator,
-      },
-    },
+    { plugin: albums, options: { service: albumsService, validator: AlbumsValidator } },
+    { plugin: songs, options: { service: songsService, validator: SongsValidator } },
+    { plugin: users, options: { service: usersService, validator: UsersValidator } },
+    { plugin: playlists, options: { service: playlistsService, validator: PlaylistsValidator } },
+    { plugin: playlistSongs, options: { service: playlistSongsService, validator: PlaylistSongsValidator } },
+    { plugin: collaborations, options: { service: collaborationsService, playlistsService, usersService, validator: CollaborationsValidator } },
+    { plugin: exportsPlugin, options: { service: exportsService, playlistsService, validator: ExportsValidator } },
+    { plugin: authentications, options: { authenticationsService, usersService, tokenManager: TokenManager, validator: AuthenticationsValidator } },
+    { plugin: uploadsPlugin, options: { storageService, albumsService, validator: UploadsValidator } },
   ]);
 
+  // Penanganan error global
   server.ext("onPreResponse", (request, h) => {
     const { response } = request;
 
     if (response instanceof Error) {
       if (response instanceof ClientError) {
-        const newResponse = h.response({
-          status: "fail",
-          message: response.message,
-        });
-        newResponse.code(response.statusCode);
-        return newResponse;
+        return h.response({ status: "fail", message: response.message }).code(response.statusCode);
       }
 
       if (!response.isServer) {
         return h.continue;
       }
 
-      const newResponse = h.response({
-        status: "error",
-        message: "Terjadi kegagalan pada server kami",
-      });
-      newResponse.code(500);
-      return newResponse;
+      console.error(response); // Log error agar bisa dianalisis
+      return h.response({ status: "error", message: "Terjadi kegagalan pada server kami" }).code(500);
     }
 
     return h.continue;

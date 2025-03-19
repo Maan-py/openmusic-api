@@ -26,6 +26,21 @@ class AlbumsService {
     return result.rows[0].id;
   }
 
+  async updateAlbumCover(albumId, coverPath) {
+    const relativeCoverPath = `uploads/file/images/${coverPath.split("\\").pop()}`;
+
+    const query = {
+      text: "UPDATE albums SET cover = $1 WHERE id = $2 RETURNING id",
+      values: [relativeCoverPath, albumId], // Simpan hanya path yang bisa diakses
+    };
+
+    const result = await this._pool.query(query);
+
+    if (!result.rowCount) {
+      throw new NotFoundError("Gagal memperbarui cover album. Id tidak ditemukan");
+    }
+  }
+
   async getAlbumById(id) {
     const query = {
       text: "SELECT * FROM albums WHERE id = $1",
@@ -68,6 +83,7 @@ class AlbumsService {
       id: albumResult.rows[0].id,
       name: albumResult.rows[0].name,
       year: albumResult.rows[0].year,
+      coverUrl: albumResult.rows[0].cover,
       songs: songsResult.rows,
     };
   }

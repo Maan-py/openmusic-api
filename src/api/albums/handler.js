@@ -3,7 +3,7 @@ class AlbumsHandler {
   constructor(service, validator) {
     this._service = service;
     this._validator = validator;
-    
+
     autoBind(this);
   }
 
@@ -24,6 +24,18 @@ class AlbumsHandler {
     return response;
   }
 
+  async updateAlbumCover(albumId, coverUrl) {
+    const query = {
+      text: "UPDATE albums SET cover = $1 WHERE id = $2 RETURNING id",
+      values: [coverUrl, albumId],
+    };
+
+    const result = await this._pool.query(query);
+    if (!result.rowCount) {
+      throw new NotFoundError("Gagal memperbarui cover album. Id tidak ditemukan");
+    }
+  }
+
   async getAlbumByIdHandler(request) {
     const { id } = request.params;
     const album = await this._service.getAlbumById(id);
@@ -31,21 +43,23 @@ class AlbumsHandler {
     return {
       status: "success",
       data: {
-        album,
+        album: {
+          id: album.id,
+          name: album.name,
+          year: album.year,
+          coverUrl: album.coverUrl || null,
+        },
       },
     };
   }
 
-  async getAlbumByIdWithSongsHandler(request, h) {
+  async getAlbumByIdWithSongsHandler(request) {
     const { id } = request.params;
-
     const album = await this._service.getAlbumByIdWithSongs(id);
 
     return {
       status: "success",
-      data: {
-        album,
-      },
+      data: { album },
     };
   }
 
