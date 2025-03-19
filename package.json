@@ -22,5 +22,11 @@
     "node-pg-migrate": "^7.9.1",
     "nodemon": "^3.1.9",
     "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.22.0",
+    "eslint": "^9.22.0",
+    "eslint-config-dicodingacademy": "^0.9.4",
+    "globals": "^16.0.0"
   }
 }
