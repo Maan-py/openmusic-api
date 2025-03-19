@@ -28,6 +28,10 @@ const collaborations = require("./api/collaborations");
 const CollaborationsService = require("./services/postgres/CollaborationsService");
 const CollaborationsValidator = require("./validator/collaborations");
 
+const ExportsService = require("./services/rabbitmq/ProducerService");
+const ExportsValidator = require("./validator/exports");
+const exportsPlugin = require("./api/exports");
+
 const authentications = require("./api/authentications");
 const AuthenticationsService = require("./services/postgres/AuthenticationsService");
 const TokenManager = require("./tokenize/TokenManager");
@@ -40,7 +44,8 @@ const init = async () => {
   const usersService = new UsersService();
   const collaborationsService = new CollaborationsService();
   const playlistsService = new PlaylistsService(collaborationsService);
-  const playlistSongsService = new PlaylistSongsService(collaborationsService); // ✅ Pastikan hanya menerima CollaborationsService
+  const playlistSongsService = new PlaylistSongsService(collaborationsService);
+  const exportsService = new ExportsService();
   const authenticationsService = new AuthenticationsService();
 
   // Konfigurasi server
@@ -122,6 +127,14 @@ const init = async () => {
         playlistsService,
         usersService,
         validator: CollaborationsValidator,
+      },
+    },
+    {
+      plugin: exportsPlugin,
+      options: {
+        service: exportsService,
+        playlistsService,
+        validator: ExportsValidator,
       },
     },
     {
