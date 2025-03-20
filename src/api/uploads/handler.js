@@ -25,15 +25,10 @@ class UploadsHandler {
     // Simpan file ke StorageService
     const filename = await this._storageService.writeFile(cover, cover.hapi);
 
-    // Tentukan lokasi file
-    const fileLocation = `http://${process.env.HOST}:${process.env.PORT}/upload/images/${filename}`;
-
-    console.log("DEBUG: File berhasil disimpan di:", fileLocation);
+    const fileLocation = `http://${process.env.HOST}:${process.env.PORT}/uploads/images/${filename}`; //upload menggunakan s
 
     // Perbarui database
     await this._albumsService.updateAlbumCover(id, fileLocation);
-
-    console.log("DEBUG: Database berhasil diperbarui dengan coverUrl:", fileLocation);
 
     return h
       .response({

@@ -25,9 +25,6 @@ class AlbumsHandler {
   }
 
   async updateAlbumCover(albumId, coverUrl) {
-    console.log("DEBUG: albumId ->", albumId);
-    console.log("DEBUG: coverUrl ->", coverUrl);
-
     const query = {
       text: "UPDATE albums SET cover = $1 WHERE id = $2 RETURNING id",
       values: [coverUrl, albumId],
@@ -38,8 +35,6 @@ class AlbumsHandler {
     if (!result.rowCount) {
       throw new NotFoundError("Gagal memperbarui cover album. ID tidak ditemukan");
     }
-
-    console.log("DEBUG: Album cover berhasil diperbarui!");
   }
 
   async getAlbumByIdHandler(request) {

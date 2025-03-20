@@ -1,3 +1,4 @@
+const path = require("path");
 const routes = (handler) => [
   {
     method: "POST",
@@ -9,7 +10,16 @@ const routes = (handler) => [
         multipart: true,
         output: "stream",
         maxBytes: 512000, // Maksimal 512KB
-        parse: true, // Harus ada agar payload bisa diproses
+        parse: true,
+      },
+    },
+  },
+  {
+    method: "GET",
+    path: "/uploads/{param*}",
+    handler: {
+      directory: {
+        path: path.resolve(__dirname, "file"),
       },
     },
   },
