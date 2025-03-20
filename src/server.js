@@ -1,6 +1,7 @@
 require("dotenv").config();
 const Hapi = require("@hapi/hapi");
 const Jwt = require("@hapi/jwt");
+const Inert = require("@hapi/inert");
 const path = require("path");
 const ClientError = require("./exceptions/ClientError");
 
@@ -46,9 +47,6 @@ const LikesService = require("./services/postgres/LikesService");
 const LikesHandler = require("./api/likes");
 const LikesValidator = require("./validator/likes");
 
-// Inisialisasi StorageService dengan path yang benar
-const storageService = new StorageService(path.resolve(__dirname, "api/uploads/file/images"));
-
 const init = async () => {
   // Inisialisasi service
   const albumsService = new AlbumsService();
@@ -59,7 +57,8 @@ const init = async () => {
   const playlistSongsService = new PlaylistSongsService(collaborationsService);
   const exportsService = new ExportsService();
   const authenticationsService = new AuthenticationsService();
-  const likesService = new LikesService(); // Inisialisasi LikesService
+  const likesService = new LikesService();
+  const storageService = new StorageService(path.resolve(__dirname, "api/uploads/file/images"));
 
   // Konfigurasi server
   const server = Hapi.server({
@@ -73,7 +72,14 @@ const init = async () => {
   });
 
   // Registrasi plugin eksternal
-  await server.register([{ plugin: Jwt }]);
+  await server.register([
+    {
+      plugin: Jwt,
+    },
+    {
+      plugin: Inert,
+    },
+  ]);
 
   // Mendefinisikan strategy autentikasi JWT
   server.auth.strategy("openmusic_jwt", "jwt", {
@@ -100,7 +106,14 @@ const init = async () => {
     { plugin: collaborations, options: { service: collaborationsService, playlistsService, usersService, validator: CollaborationsValidator } },
     { plugin: exportsPlugin, options: { service: exportsService, playlistsService, validator: ExportsValidator } },
     { plugin: authentications, options: { authenticationsService, usersService, tokenManager: TokenManager, validator: AuthenticationsValidator } },
-    { plugin: uploadsPlugin, options: { storageService, albumsService, validator: UploadsValidator } },
+    {
+      plugin: uploadsPlugin,
+      options: {
+        storageService,
+        albumsService, // Kirim albumsService sebagai opsi
+        validator: UploadsValidator,
+      },
+    },
     { plugin: LikesHandler, options: { service: likesService, validator: LikesValidator } }, // Registrasi plugin LikesHandler
   ]);
 

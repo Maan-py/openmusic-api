@@ -1,58 +1,47 @@
 class UploadsHandler {
-  constructor(storageService, albumsService, validator) {
-    this.storageService = storageService;
-    this.albumsService = albumsService;
-    this.validator = validator;
+  constructor(storageService, AlbumsService, validator) {
+    this._storageService = storageService;
+    this._albumsService = AlbumsService;
+    this._validator = validator;
+
+    this.postUploadImageHandler = this.postUploadImageHandler.bind(this);
   }
 
   async postUploadImageHandler(request, h) {
-    const { cover: data } = request.payload;
-    const { id: albumId } = request.params;
+    const { id } = request.params;
+    const { cover } = request.payload;
 
-    if (!data) {
+    if (!cover) {
       return h
         .response({
           status: "fail",
-          message: "Gambar harus dikirim",
+          message: "Berkas tidak ditemukan dalam payload",
         })
         .code(400);
     }
 
-    try {
-      this.validator.validateImageHeaders(data.hapi.headers);
+    this._validator.validateImageHeaders(cover.hapi.headers);
 
-      const MAX_FILE_SIZE = 512 * 1024; // 512KB
+    // Simpan file ke StorageService
+    const filename = await this._storageService.writeFile(cover, cover.hapi);
 
-      if (data._data.length > MAX_FILE_SIZE) {
-        return h
-          .response({
-            status: "fail",
-            message: "Ukuran file terlalu besar. Maksimal 512KB.",
-          })
-          .code(413); 
-      }
+    // Tentukan lokasi file
+    const fileLocation = `http://${process.env.HOST}:${process.env.PORT}/upload/images/${filename}`;
 
-      const filename = await this.storageService.writeFile(data, data.hapi.filename);
-      const filePath = filename;
+    console.log("DEBUG: File berhasil disimpan di:", fileLocation);
 
-      await this.albumsService.updateAlbumCover(albumId, filePath);
+    // Perbarui database
+    await this._albumsService.updateAlbumCover(id, fileLocation);
 
-      return h
-        .response({
-          status: "success",
-          message: "Berhasil menambahkan cover album",
-          data: { fileLocation: filePath },
-        })
-        .code(201);
-    } catch (error) {
-      console.error("Error saat mengupload gambar:", error);
-      return h
-        .response({
-          status: "fail",
-          message: "Tipe file tidak didukung. Hanya gambar yang diperbolehkan.",
-        })
-        .code(400);
-    }
+    console.log("DEBUG: Database berhasil diperbarui dengan coverUrl:", fileLocation);
+
+    return h
+      .response({
+        status: "success",
+        message: "Sampul berhasil diunggah",
+        data: { cover: fileLocation },
+      })
+      .code(201);
   }
 }
 

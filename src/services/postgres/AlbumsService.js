@@ -27,11 +27,11 @@ class AlbumsService {
   }
 
   async updateAlbumCover(albumId, coverPath) {
-    const relativeCoverPath = `uploads/file/images/${coverPath.split("\\").pop()}`;
+    const relativeCoverPath = `${coverPath.split("\\").pop()}`;
 
     const query = {
       text: "UPDATE albums SET cover = $1 WHERE id = $2 RETURNING id",
-      values: [relativeCoverPath, albumId], // Simpan hanya path yang bisa diakses
+      values: [relativeCoverPath, albumId],
     };
 
     const result = await this._pool.query(query);
